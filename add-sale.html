@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Sale - Sales Leaderboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .form-container {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            color: #333;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            color: #667eea;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .required {
+            color: #ff4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>📝 Add New Sale</h1>
+        
+        <div id="message" class="message"></div>
+        
+        <form id="saleForm">
+            <div class="form-group">
+                <label for="agentName">
+                    Agent Name <span class="required">*</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="agentName" 
+                    name="agentName" 
+                    required 
+                    placeholder="e.g., Ram Sharma"
+                    list="agentSuggestions"
+                >
+                <datalist id="agentSuggestions">
+                    <!-- Agent suggestions will be loaded here -->
+                </datalist>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">
+                    Sale Amount (Rs.) <span class="required">*</span>
+                </label>
+                <input 
+                    type="number" 
+                    id="amount" 
+                    name="amount" 
+                    required 
+                    min="1" 
+                    step="0.01"
+                    placeholder="50000"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="notes">Notes (Optional)</label>
+                <textarea 
+                    id="notes" 
+                    name="notes" 
+                    placeholder="Add any additional notes about this sale..."
+                ></textarea>
+            </div>
+
+            <div class="button-group">
+                <button type="button" class="btn-secondary" onclick="goBack()">Cancel</button>
+                <button type="submit" class="btn-primary" id="submitBtn">Add Sale</button>
+            </div>
+        </form>
+
+        <div id="loading" class="loading">
+            <p>Adding sale...</p>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin + '/api';
+
+        // Load existing agents for suggestions
+        async function loadAgents() {
+            try {
+                const response = await fetch(`${API_URL}/leaderboard?period=all`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const datalist = document.getElementById('agentSuggestions');
+                    data.leaderboard.forEach(agent => {
+                        const option = document.createElement('option');
+                        option.value = agent.name;
+                        datalist.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load agents:', error);
+            }
+        }
+
+        // Show message
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type} show`;
+            
+            setTimeout(() => {
+                messageEl.classList.remove('show');
+            }, 5000);
+        }
+
+        // Handle form submission
+        document.getElementById('saleForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const agentName = document.getElementById('agentName').value.trim();
+            const amount = parseFloat(document.getElementById('amount').value);
+            const notes = document.getElementById('notes').value.trim();
+            const submitBtn = document.getElementById('submitBtn');
+
+            if (!agentName || amount <= 0) {
+                showMessage('Please fill in all required fields correctly', 'error');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').classList.add('show');
+            submitBtn.disabled = true;
+            
+            try {
+                const response = await fetch(`${API_URL}/sales`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        agent_name: agentName,
+                        amount: amount,
+                        notes: notes || null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('✅ Sale added successfully! Redirecting...', 'success');
+                    
+                    // Reset form
+                    document.getElementById('saleForm').reset();
+                    
+                    // Redirect to dashboard after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    showMessage('❌ Error: ' + data.message, 'error');
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                showMessage('❌ Failed to add sale: ' + error.message, 'error');
+                submitBtn.disabled = false;
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+            }
+        });
+
+        // Go back to dashboard
+        function goBack() {
+            window.location.href = '/';
+        }
+
+        // Load agents on page load
+        loadAgents();
+    </script>
+</body>
+</html>
